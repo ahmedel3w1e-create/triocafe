@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>كافيه تريو | Trio Cafe — نظام الولاء الرقمي المتكامل</title>
+    <!-- خطوط Google العربية -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Cairo', 'sans-serif'],
+                    },
+                    colors: {
+                        coffee: {
+                            800: '#3E2723',
+                            900: '#261712',
+                            950: '#160D0A',
+                        },
+                        gold: {
+                            400: '#FBBF24',
+                            500: '#D97706',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes slideDownIn {
+            0% { transform: translateY(-100%); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .animate-toast {
+            animation: slideDownIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .card-shine {
+            background: linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.03) 45%, rgba(255,255,255,0) 100%);
+        }
+        /* تنسيق الطباعة الخاص بستاند الكاشير */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-stand, #printable-stand * {
+                visibility: visible;
+            }
+            #printable-stand {
+                position: fixed;
+                inset: 0;
+                margin: auto;
+                width: 100%;
+                max-width: 420px;
+                box-shadow: none !important;
+                border: 2px solid #261712 !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-coffee-950 text-stone-100 font-sans antialiased min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-coffee-950">
+
+    <!-- ==================== إشعار تفاعلي علوي ==================== -->
+    <div id="live-toast" class="fixed top-4 left-4 right-4 max-w-md mx-auto z-50 hidden">
+        <div class="bg-white text-coffee-950 rounded-2xl p-3.5 shadow-2xl border border-amber-300 flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500 text-coffee-950 flex items-center justify-center text-lg font-black shrink-0">
+                ☕
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black text-coffee-900">كافيه تريو | Trio Cafe</span>
+                    <span class="text-[10px] font-bold text-stone-400">الآن</span>
+                </div>
+                <p id="toast-body" class="text-xs font-bold text-stone-700 mt-0.5 leading-snug"></p>
+            </div>
+            <button onclick="closeToast()" class="text-stone-400 hover:text-stone-700 text-xs font-bold px-1 cursor-pointer">✕</button>
+        </div>
+    </div>
+
+    <!-- ==================== الشريط العلوي والتنقل بين الصفحات المستقلة ==================== -->
+    <header class="sticky top-0 z-40 bg-coffee-900/95 backdrop-blur-md border-b border-stone-800 px-4 py-3">
+        <div class="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+            <!-- شعار كافيه تريو + حالة المزامنة السحابية -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-coffee-950 flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/20">
+                    ☕
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-base font-black text-white leading-none">كافيه تريو <span class="text-amber-400">| Trio Cafe</span></span>
+                        <span id="sync-status-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[10px] font-extrabold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                            جاري الاتصال...
+                        </span>
+                    </div>
+                    <div class="text-[11px] text-stone-400 mt-0.5">اشترِ 5 مشروبات واحصل على الـ 6 مجاناً</div>
+                </div>
+            </div>
+
+            <!-- أزرار التبديل بين الصفحات (تظهر فقط في وضع الكاشير/الإدارة وتختفي تماماً عن العميل) -->
+            <nav id="admin-nav-bar" class="hidden flex items-center bg-coffee-950 p-1 rounded-2xl border border-stone-800 w-full md:w-auto">
+                <button id="nav-customer" onclick="navigateTo('customer')" class="flex-1 md:flex-initial px-3.5 py-2 rounded-xl text-xs font-black transition-all bg-amber-400 text-coffee-950 shadow cursor-pointer">
+                    📱 معاينة العميل
+                </button>
+                <button id="nav-cashier" onclick="navigateTo('cashier')" class="flex-1 md:flex-initial px-3.5 py-2 rounded-xl text-xs font-black transition-all text-stone-300 hover:text-white cursor-pointer">
+                    🖥️ شاشة الكاشير
+                </button>
+                <button id="nav-stand" onclick="navigateTo('stand')" class="flex-1 md:flex-initial px-3.5 py-2 rounded-xl text-xs font-black transition-all text-stone-300 hover:text-white cursor-pointer">
+                    🖨️ ستاند QR المكان
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ==================== المحتوى الرئيسي ==================== -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-6">
+
+        <!-- =====================================================================
+             1. صفحة العملاء المستقلة (#customer)
+        ===================================================================== -->
+        <section id="page-customer" class="space-y-6">
+            <div class="max-w-md mx-auto">
+                <!-- اختيار العميل الحالي (يظهر للإدارة فقط عند المعاينة ويختفي عن العميل العادي) -->
+                <div id="admin-customer-switcher-box" class="hidden bg-coffee-900/90 border border-stone-800 rounded-2xl p-3 mb-4 flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-stone-300">معاينة بطاقة العميل:</span>
+                    <select id="customer-switcher" onchange="switchCustomer(this.value)"
+                        class="px-3 py-1.5 rounded-xl bg-stone-900 border border-stone-700 text-xs font-bold text-amber-300 focus:outline-none focus:border-amber-400">
+                    </select>
+                </div>
+
+                <!-- بطاقة ولاء كافيه تريو الرقمية -->
+                <div class="rounded-[30px] bg-gradient-to-br from-coffee-800 via-stone-900 to-coffee-950 p-6 shadow-2xl border border-amber-500/25 relative overflow-hidden">
+                    <div class="absolute inset-0 card-shine pointer-events-none"></div>
+
+                    <!-- رأس البطاقة -->
+                    <div class="flex items-center justify-between border-b border-white/10 pb-4 relative z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-2xl">
+                                ☕
+                            </div>
+                            <div>
+                                <h1 class="text-lg font-black text-white leading-tight">كافيه تريو | Trio Cafe</h1>
+                                <p class="text-xs text-amber-300/90 font-semibold mt-0.5">بطاقة الولاء الرقمية الرسمية</p>
+                            </div>
+                        </div>
+                        <div class="text-left bg-black/35 px-3.5 py-1.5 rounded-2xl border border-white/10">
+                            <div class="text-[10px] text-stone-400 font-bold">الأختام</div>
+                            <div class="text-base font-black text-amber-400"><span id="cust-stamps-count">0</span> / 6</div>
+                        </div>
+                    </div>
+
+                    <!-- اسم حامل البطاقة وحالة الهدية -->
+                    <div class="flex items-center justify-between text-xs mt-4 px-1 relative z-10">
+                        <div>
+                            <span class="text-stone-400">حامل البطاقة:</span>
+                            <span id="cust-display-name" class="font-black text-white mr-1">أحمد طارق</span>
+                        </div>
+                        <span id="cust-reward-badge" class="px-2.5 py-1 rounded-full bg-amber-400/15 text-amber-300 font-extrabold text-[11px]">
+                            باقي 3 أكواب على هديتك
+                        </span>
+                    </div>
+
+                    <!-- شبكة الـ 6 أكواب -->
+                    <div id="cust-stamps-grid" class="grid grid-cols-6 gap-2.5 bg-black/30 p-4 rounded-2xl border border-white/10 my-4 relative z-10">
+                    </div>
+
+                    <!-- كود العميل و QR الخاص به للكاشير -->
+                    <div class="bg-white rounded-2xl p-3.5 text-coffee-950 flex items-center justify-between shadow-lg relative z-10">
+                        <div class="space-y-1">
+                            <span class="inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-black">أبرز الكود للكاشير عند الطلب</span>
+                            <div class="text-xs font-extrabold text-coffee-900">كود العضوية الخاص بك</div>
+                            <div id="cust-display-code" class="text-base font-black font-mono text-amber-700 tracking-wider">TRIO-101</div>
+                        </div>
+                        <div id="cust-qr-svg" class="p-1.5 bg-stone-50 rounded-xl border border-stone-200 shrink-0">
+                        </div>
+                    </div>
+
+                    <div class="mt-3.5 text-center text-[10px] text-stone-400 font-semibold relative z-10">
+                        احفظ الصفحة على الشاشة الرئيسية للجوال • تطوير <span class="text-amber-400 font-bold">ميدو | Medo</span>
+                    </div>
+                </div>
+
+                <!-- زر تبديل العضوية في حال كان العميل مسجلاً مسبقاً ويريد استرجاع بطاقته بكوده -->
+                <div class="mt-4 bg-coffee-900/70 border border-stone-800/80 rounded-2xl p-3.5 flex items-center justify-between gap-2">
+                    <span class="text-xs text-stone-300 font-bold">لديك كود عضوية سابق؟</span>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="restore-code-input" placeholder="TRIO-101"
+                            class="w-28 px-2.5 py-1.5 rounded-xl bg-stone-900 border border-stone-700 text-xs font-mono text-white uppercase text-center focus:outline-none focus:border-amber-400">
+                        <button type="button" onclick="restoreMemberCard()" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-amber-300 text-xs font-extrabold cursor-pointer">
+                            فتح بطاقتي
+                        </button>
+                    </div>
+                </div>
+
+                <!-- نموذج تسجيل عميل جديد (يظهر للعملاء الجدد بعد مسح QR المكان) -->
+                <form onsubmit="createNewMember(event)" class="mt-6 bg-coffee-900 border border-stone-800 rounded-3xl p-5 space-y-3.5 shadow-xl">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-black text-white">✨ عميل جديد في كافيه تريو؟</h2>
+                        <span class="text-[11px] font-bold text-amber-400">+1 ختم ترحيبي مجاناً</span>
+                    </div>
+                    <p class="text-xs text-stone-400">سجّل اسمك ورقم جوالك (اختياري) واستلم بطاقتك الرقمية فوراً:</p>
+                    <div class="space-y-2.5">
+                        <input type="text" id="reg-name" required placeholder="اكتب اسمك هنا..."
+                            class="w-full px-4 py-3 rounded-2xl bg-stone-900 border border-stone-700 text-xs text-white placeholder-stone-400 focus:outline-none focus:border-amber-400">
+                        <div class="flex gap-2">
+                            <input type="tel" id="reg-phone" placeholder="رقم الواتساب (اختياري)"
+                                class="flex-1 px-4 py-3 rounded-2xl bg-stone-900 border border-stone-700 text-xs text-white placeholder-stone-400 focus:outline-none focus:border-amber-400 text-left" dir="ltr">
+                            <button type="submit" class="px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-coffee-950 font-black text-xs shrink-0 cursor-pointer shadow-lg shadow-amber-500/15">
+                                استلم بطاقتي
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- =====================================================================
+             2. صفحة الكاشير المستقلة (#cashier)
+        ===================================================================== -->
+        <section id="page-cashier" class="hidden space-y-6">
+            <!-- شاشة قفل الكاشير برمز PIN -->
+            <div id="cashier-lock-screen" class="max-w-sm mx-auto bg-coffee-900 border border-stone-800 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+                <div class="w-14 h-14 rounded-2xl bg-amber-400/15 text-amber-400 flex items-center justify-center text-2xl mx-auto">
+                    🔐
+                </div>
+                <div>
+                    <h2 class="text-lg font-black text-white">دخول كاشير كافيه تريو</h2>
+                    <p class="text-xs text-stone-400 mt-1">أدخل رمز الدخول الخاص بالكاشير (الرمز التجريبي: <span class="text-amber-400 font-mono font-bold">1234</span>)</p>
+                </div>
+                <form onsubmit="unlockCashier(event)" class="space-y-3">
+                    <input type="password" id="cashier-pin-input" maxlength="6" required placeholder="••••"
+                        class="w-full px-4 py-3 rounded-2xl bg-stone-900 border border-stone-700 text-center text-lg font-mono tracking-widest text-white focus:outline-none focus:border-amber-400">
+                    <button type="submit" class="w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-coffee-950 font-black text-sm cursor-pointer">
+                        فتح شاشة الكاشير
+                    </button>
+                </form>
+            </div>
+
+            <!-- لوحة عمل الكاشير بعد فتح القفل -->
+            <div id="cashier-dashboard" class="hidden space-y-6">
+                <div class="bg-coffee-900 border border-stone-800 rounded-3xl p-5 sm:p-7 shadow-2xl">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 pb-4 mb-5">
+                        <div>
+                            <h2 class="text-lg font-black text-white">🖥️ كاشير كافيه تريو | Trio POS</h2>
+                            <p class="text-xs text-stone-400 mt-0.5">ابحث بكود العميل أو اسمه لتسجيل ختم (+1) أو صرف المشروب الـ 6 مجاناً</p>
+                        </div>
+                        <button onclick="lockCashier()" class="px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-xs font-bold text-stone-300 cursor-pointer">
+                            🔒 قفل الشاشة
+                        </button>
+                    </div>
+
+                    <!-- صندوق رابط الكاشير ورمز الدخول لإرساله للكاشير أو صاحب المحل -->
+                    <div class="bg-coffee-950/90 border border-amber-500/30 rounded-2xl p-3.5 mb-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <div class="text-[11px] font-black text-amber-400">🔗 رابط صفحة الكاشير الخاص بالمحل (رمز الدخول: <span class="font-mono">1234</span>)</div>
+                            <div id="cashier-direct-link" class="text-xs font-mono text-stone-200 truncate mt-1" dir="ltr"></div>
+                        </div>
+                        <button onclick="copyCashierLink()" type="button" class="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-coffee-950 font-black text-xs shrink-0 cursor-pointer">
+                            📋 نسخ رابط الكاشير
+                        </button>
+                    </div>
+
+                    <!-- البحث السريع بكود العميل -->
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <input type="text" id="cashier-search-input" placeholder="أدخل كود العميل (مثل TRIO-101) أو اسمه..."
+                                class="flex-1 px-4 py-3.5 rounded-2xl bg-stone-900 border border-stone-700 text-sm font-bold text-white focus:outline-none focus:border-amber-400">
+                            <button onclick="searchCustomerCashier()" type="button" class="px-5 py-3.5 rounded-2xl bg-stone-700 hover:bg-stone-600 text-white font-extrabold text-xs cursor-pointer">
+                                بحث
+                            </button>
+                        </div>
+
+                        <!-- أزرار اختيار سريعة لعملاء الكافيه -->
+                        <div id="cashier-quick-pills" class="flex flex-wrap gap-2">
+                        </div>
+
+                        <!-- بطاقة العميل المحدد أمام الكاشير -->
+                        <div class="bg-coffee-950 border border-stone-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="text-center sm:text-right">
+                                <span class="text-[11px] text-stone-400">العميل المحدد:</span>
+                                <div id="pos-cust-name" class="text-xl font-black text-white mt-0.5">أحمد طارق</div>
+                                <div class="text-xs font-mono text-amber-400 mt-0.5"><span id="pos-cust-code">TRIO-101</span> • <span id="pos-cust-phone" class="text-stone-400">بدون رقم</span></div>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <div class="bg-stone-900 px-5 py-2.5 rounded-2xl border border-stone-800 text-center">
+                                    <div class="text-[10px] text-stone-400">الرصيد الحالي</div>
+                                    <div class="text-2xl font-black text-amber-400"><span id="pos-cust-stamps">3</span> / 6</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- أزرار الإجراءات للكاشير -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <button onclick="posAddStamp()" type="button" class="py-4 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-coffee-950 font-black text-sm shadow-lg shadow-emerald-500/20 transition-all cursor-pointer">
+                                ☕ تسجيل طلب (+1 ختم)
+                            </button>
+                            <button onclick="posRedeemFreeDrink()" type="button" class="py-4 px-5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-coffee-950 font-black text-sm shadow-lg shadow-amber-500/20 transition-all cursor-pointer">
+                                🎁 صرف المشروب الـ 6 مجاناً
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- سجل عمليات الكافيه -->
+                <div class="bg-coffee-900 border border-stone-800 rounded-3xl p-5 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-black text-white">📋 سجل حركات الكاشير اليوم</h3>
+                        <span class="text-xs text-stone-400">إجمالي العملاء المسجلين: <strong id="pos-total-members" class="text-amber-400">0</strong></span>
+                    </div>
+                    <div id="pos-logs-container" class="space-y-2 text-xs">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================================
+             3. صفحة ستاند المكان والـ QR Code جاهزة للطباعة (#stand)
+        ===================================================================== -->
+        <section id="page-stand" class="hidden space-y-6">
+            <div class="max-w-md mx-auto text-center space-y-4">
+                <div class="bg-coffee-900 border border-stone-800 rounded-2xl p-4 text-xs text-stone-300 leading-relaxed">
+                    هذا هو <strong class="text-amber-400">ستاند الكاشير والطاولات</strong> الخاص بـ <strong>كافيه تريو</strong>. عندما يمسح العميل الكود بكاميرا جواله، تُفتح له صفحة بطاقته مباشرة.
+                </div>
+
+                <!-- بطاقة الستاند القابلة للطباعة -->
+                <div id="printable-stand" class="bg-white text-coffee-950 rounded-[32px] p-8 shadow-2xl border-4 border-amber-400 relative overflow-hidden">
+                    <div class="w-16 h-16 rounded-2xl bg-coffee-900 text-amber-400 flex items-center justify-center text-3xl mx-auto mb-3 shadow-md">
+                        ☕
+                    </div>
+                    <h2 class="text-2xl font-black text-coffee-900">كافيه تريو | Trio Cafe</h2>
+                    <p class="text-xs font-bold text-amber-700 mt-1">برنامج الولاء الرقمي • بدون تطبيق</p>
+
+                    <div class="my-5 bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
+                        <div class="text-sm font-black text-coffee-900">اشترِ 5 مشروبات واحصل على الـ 6 مجاناً! 🎁</div>
+                        <div class="text-[11px] text-stone-600 mt-1">امسح الكود بكاميرا جوالك واستلم بطاقتك في 3 ثوانٍ</div>
+                    </div>
+
+                    <!-- صورة QR Code حقيقية قابلة للمسح -->
+                    <div class="bg-white p-3 rounded-2xl border-2 border-stone-200 inline-block shadow-sm">
+                        <img id="stand-qr-image" alt="QR Code كافيه تريو" class="w-48 h-48 mx-auto rounded-lg"
+                            onerror="this.src='https://placehold.co/220x220/261712/FBBF24?text=TRIO+CAFE+QR'">
+                    </div>
+
+                    <div class="mt-4 text-[11px] font-bold text-stone-500 break-all" id="stand-target-url"></div>
+
+                    <div class="mt-5 pt-3 border-t border-stone-200 text-[10px] font-extrabold text-stone-400">
+                        مدعوم بواسطة وكالة <span class="text-coffee-900">ميدو | Medo</span>
+                    </div>
+                </div>
+
+                <!-- تنبيه وضبط الرابط العام للستاند -->
+                <div id="local-preview-warning" class="bg-amber-500/15 border border-amber-400/40 rounded-2xl p-3.5 text-right space-y-2">
+                    <div class="text-xs font-black text-amber-300">⚠️ ملاحظة لتشغيل الـ QR Code على كاميرا الجوال:</div>
+                    <p class="text-[11px] text-stone-300 leading-relaxed">
+                        أنت الآن في وضع المعاينة الداخلية؛ لكي يفتح الـ QR Code على جوالك عند مسحه بالكاميرا، ارفع هذا الملف على استضافة مجانية (مثل <strong>Netlify Drop</strong>) أو اكتب رابط موقعك هنا ليتم تحديث الـ QR فوراً:
+                    </p>
+                    <input type="url" id="custom-public-url" oninput="updateStandQrUrl()" placeholder="https://trio-cafe.netlify.app"
+                        class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs text-white text-left font-mono focus:outline-none focus:border-amber-400" dir="ltr">
+                </div>
+
+                <!-- أزرار الطباعة والمحاكاة والنسخ -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                <button onclick="window.print()" type="button" class="py-3 px-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-coffee-950 font-black text-xs shadow-lg cursor-pointer">
+                    🖨️ طباعة الستاند
+                </button>
+                <button onclick="simulateScanStandQr()" type="button" class="py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-coffee-950 font-black text-xs shadow-lg cursor-pointer">
+                    📱 تجربة مسح QR
+                </button>
+                <button onclick="copyCustomerLink()" type="button" class="py-3 px-4 rounded-2xl bg-stone-800 hover:bg-stone-700 text-white border border-stone-700 font-bold text-xs cursor-pointer">
+                    🔗 نسخ رابط العميل
+                </button>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ==================== التذييل ==================== -->
+<footer class="bg-coffee-900 border-t border-stone-800/80 py-3 px-4 text-center text-[11px] text-stone-400">
+    نظام الولاء الرقمي لـ <span class="text-white font-bold">كافيه تريو | Trio Cafe</span> — تطوير وكالة <span class="text-amber-400 font-bold">ميدو | Medo</span>
+</footer>
+
+<!-- ==================== البرمجة الكاملة والآمنة للنظام ==================== -->
+<script>
+    // الثوابت والإعدادات الأساسية للنظام
+    const MAX_STAMPS = 6;
+    const CASHIER_PIN = '1234';
+    const LOCAL_STORAGE_KEY = 'trio_cafe_loyalty_state_v2';
+    const MY_CARD_ID_KEY = 'trio_cafe_my_card_id';
+
+    // البيانات المبدئية في حال عدم وجود بيانات سابقة
+    const initialData = {
+        activeCustomerId: 'TRIO-101',
+        customers: [
+            { id: 'TRIO-101', name: 'أحمد طارق', phone: '01012345678', stamps: 3, redeemed: 0 },
+            { id: 'TRIO-102', name: 'مريم حسن', phone: '01098765432', stamps: 5, redeemed: 1 },
+            { id: 'TRIO-103', name: 'كريم محمود', phone: '', stamps: 6, redeemed: 0 }
+        ],
+        logs: [
+            { time: '12:30 م', text: '☕ تسجيل طلب (+1 ختم) للعميل أحمد طارق (TRIO-101) — الرصيد: 3/6' },
+            { time: '11:50 ص', text: '✨ إصدار بطاقة جديدة للعميلة مريم حسن (TRIO-102)' }
+        ]
+    };
+
+    let state = loadLocalState();
+    let cashierUnlocked = false;
+    let isAdminMode = false;
+    let toastTimer = null;
+
+    function loadLocalState() {
+        try {
+            const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && Array.isArray(parsed.customers) && parsed.customers.length > 0) {
+                    return {
+                        activeCustomerId: parsed.activeCustomerId || parsed.customers[0].id,
+                        customers: parsed.customers,
+                        logs: Array.isArray(parsed.logs) ? parsed.logs : []
+                    };
+                }
+            }
+        } catch (err) {
+            console.error('خطأ في قراءة البيانات المحلية:', err);
+        }
+        return JSON.parse(JSON.stringify(initialData));
+    }
+
+    function saveState() {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+        } catch (err) {
+            console.error('خطأ في حفظ البيانات محلياً:', err);
+        }
+    }
+
+    function setSyncBadgeReady() {
+        const badge = document.getElementById('sync-status-badge');
+        if (!badge) return;
+        badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-extrabold';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> جاهز ويعمل ✓';
+    }
+
+    function getActiveCustomer() {
+        return state.customers.find(c => c.id === state.activeCustomerId) || state.customers[0];
+    }
+
+    // تحديد الرابط الأساسي للموقع لتوليد QR Code وروابط الكاشير والعملاء
+    function getResolvedBaseUrl() {
+        const customInput = document.getElementById('custom-public-url');
+        const customVal = customInput ? customInput.value.trim() : '';
+        const rawHref = window.location.href.split('#')[0];
+        const isValidWebUrl = rawHref.startsWith('http://') || rawHref.startsWith('https://');
+
+        if (customVal) {
+            return customVal.replace(/\/+$/, '').split('#')[0];
+        } else if (isValidWebUrl) {
+            return rawHref.split('#')[0];
+        } else {
+            return 'https://ahmedel3w1e-create.github.io/trio';
+        }
+    }
+
+    window.updateStandQrUrl = function() {
+        const finalBaseUrl = getResolvedBaseUrl();
+        const customerUrl = `${finalBaseUrl}/#customer`.replace('//', 'https://').replace('https:/', 'https://');
+        const cleanCustomerUrl = `${finalBaseUrl}#customer`;
+        const cleanCashierUrl = `${finalBaseUrl}#cashier`;
+
+        const cashierLinkEl = document.getElementById('cashier-direct-link');
+        if (cashierLinkEl) {
+            cashierLinkEl.textContent = cleanCashierUrl;
+        }
+
+        const targetUrlEl = document.getElementById('stand-target-url');
+        if (targetUrlEl) {
+            targetUrlEl.textContent = cleanCustomerUrl;
+        }
+
+        const qrImg = document.getElementById('stand-qr-image');
+        if (qrImg) {
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&color=261712&bgcolor=FFFFFF&data=${encodeURIComponent(cleanCustomerUrl)}`;
+        }
+    };
+
+    window.copyCashierLink = function() {
+        const url = `${getResolvedBaseUrl()}#cashier`;
+        copyTextToClipboard(url, '📋 تم نسخ رابط الكاشير! رمز الدخول هو 1234');
+    };
+
+    window.copyCustomerLink = function() {
+        const url = `${getResolvedBaseUrl()}#customer`;
+        copyTextToClipboard(url, '🔗 تم نسخ رابط بطاقة العملاء بنجاح!');
+    };
+
+    function copyTextToClipboard(text, successMsg) {
+        try {
+            const tempInput = document.createElement('input');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+        } catch (err) {
+            console.error('تعذر النسخ:', err);
+        }
+        showToast(successMsg);
+    }
+
+    // التنقل بين الصفحات المستقلة (#customer, #cashier, #stand)
+    window.navigateTo = function(page) {
+        if (page === 'cashier' || page === 'stand') {
+            isAdminMode = true;
+            try {
+                if (window.location.hash !== `#${page}`) {
+                    window.location.hash = page;
+                }
+            } catch (e) {}
+        } else {
+            isAdminMode = false;
+        }
+
+        const adminNav = document.getElementById('admin-nav-bar');
+        const adminSwitcher = document.getElementById('admin-customer-switcher-box');
+        if (adminNav && adminSwitcher) {
+            if (isAdminMode) {
+                adminNav.classList.remove('hidden');
+                adminSwitcher.classList.remove('hidden');
+            } else {
+                adminNav.classList.add('hidden');
+                adminSwitcher.classList.add('hidden');
+            }
+        }
+
+        const pages = ['customer', 'cashier', 'stand'];
+        pages.forEach(p => {
+            const sec = document.getElementById(`page-${p}`);
+            const btn = document.getElementById(`nav-${p}`);
+            if (!sec) return;
+            if (p === page) {
+                sec.classList.remove('hidden');
+                if (btn) btn.className = 'flex-1 md:flex-initial px-3.5 py-2 rounded-xl text-xs font-black transition-all bg-amber-400 text-coffee-950 shadow cursor-pointer';
+            } else {
+                sec.classList.add('hidden');
+                if (btn) btn.className = 'flex-1 md:flex-initial px-3.5 py-2 rounded-xl text-xs font-black transition-all text-stone-300 hover:text-white cursor-pointer';
+            }
+        });
+
+        // مزامنة عرض شاشة الكاشير حسب حالة القفل
+        const lockScreen = document.getElementById('cashier-lock-screen');
+        const dashboard = document.getElementById('cashier-dashboard');
+        if (lockScreen && dashboard) {
+            if (cashierUnlocked) {
+                lockScreen.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+            } else {
+                lockScreen.classList.remove('hidden');
+                dashboard.classList.add('hidden');
+            }
+        }
+
+        renderUI();
+    };
+
+    function handleHashRouting() {
+        const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+        if (hash === 'cashier' || hash === 'stand') {
+            isAdminMode = true;
+            window.navigateTo(hash);
+        } else {
+            isAdminMode = false;
+            window.navigateTo('customer');
+        }
+    }
+
+    window.restoreMemberCard = function() {
+        const codeInput = document.getElementById('restore-code-input');
+        const code = (codeInput.value || '').trim().toUpperCase();
+        if (!code) return;
+        const found = state.customers.find(c => c.id.toUpperCase() === code);
+        if (found) {
+            state.activeCustomerId = found.id;
+            try { localStorage.setItem(MY_CARD_ID_KEY, found.id); } catch (e) {}
+            saveState();
+            codeInput.value = '';
+            renderUI();
+            showToast(`✅ أهلاً بعودتك يا ${found.name}! تم فتح بطاقتك (${found.id}).`);
+        } else {
+            showToast(`⚠️ الكود "${code}" غير مسجل، يمكنك إصدار بطاقة جديدة بالأسفل.`);
+        }
+    };
+
+    function buildQrSvg(text) {
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) {
+            hash = ((hash << 5) - hash) + text.charCodeAt(i);
+            hash |= 0;
+        }
+        let rects = '';
+        const gridSize = 7;
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                const corner = (r < 2 && c < 2) || (r < 2 && c > gridSize - 3) || (r > gridSize - 3 && c < 2);
+                const on = corner || (((Math.abs(hash) >> ((r * gridSize + c) % 24)) & 1) === 1);
+                if (on) {
+                    rects += `<rect x="${c * 4 + 2}" y="${r * 4 + 2}" width="3.5" height="3.5" rx="0.6" />`;
+                }
+            }
+        }
+        return `<svg class="w-16 h-16 text-coffee-950" viewBox="0 0 32 32" fill="currentColor">${rects}</svg>`;
+    }
+
+    function renderUI() {
+        const customer = getActiveCustomer();
+        if (!customer) return;
+
+        // 1. تحديث صفحة العملاء
+        const switcher = document.getElementById('customer-switcher');
+        if (switcher) {
+            switcher.innerHTML = state.customers.map(c =>
+                `<option value="${c.id}" ${c.id === customer.id ? 'selected' : ''}>${c.name} (${c.id})</option>`
+            ).join('');
+        }
+
+        const custNameEl = document.getElementById('cust-display-name');
+        const custCodeEl = document.getElementById('cust-display-code');
+        const custStampsEl = document.getElementById('cust-stamps-count');
+        const custQrEl = document.getElementById('cust-qr-svg');
+
+        if (custNameEl) custNameEl.textContent = customer.name;
+        if (custCodeEl) custCodeEl.textContent = customer.id;
+        if (custStampsEl) custStampsEl.textContent = customer.stamps;
+        if (custQrEl) custQrEl.innerHTML = buildQrSvg(customer.id);
+
+        const rem = Math.max(0, MAX_STAMPS - customer.stamps);
+        const badge = document.getElementById('cust-reward-badge');
+        if (badge) {
+            if (rem <= 0) {
+                badge.textContent = '🎉 مشروبك الـ 6 مجاناً جاهز الآن!';
+                badge.className = 'px-2.5 py-1 rounded-full bg-emerald-400 text-coffee-950 font-black text-[11px]';
+            } else {
+                badge.textContent = `باقي ${rem} ${rem === 1 ? 'كوب' : 'أكواب'} على هديتك`;
+                badge.className = 'px-2.5 py-1 rounded-full bg-amber-400/15 text-amber-300 font-extrabold text-[11px]';
+            }
+        }
+
+        const stampsGrid = document.getElementById('cust-stamps-grid');
+        if (stampsGrid) {
+            stampsGrid.innerHTML = '';
+            for (let i = 1; i <= MAX_STAMPS; i++) {
+                const filled = i <= customer.stamps;
+                const item = document.createElement('div');
+                item.className = `aspect-square rounded-full flex items-center justify-center text-sm font-black transition-all ${
+                    filled ? 'bg-amber-400 text-coffee-950 shadow-md scale-105' : 'bg-white/10 text-white/35 border border-white/15'
+                }`;
+                item.textContent = filled ? '☕' : i;
+                stampsGrid.appendChild(item);
+            }
+        }
+
+        // 2. تحديث صفحة الكاشير
+        const posName = document.getElementById('pos-cust-name');
+        const posCode = document.getElementById('pos-cust-code');
+        const posPhone = document.getElementById('pos-cust-phone');
+        const posStamps = document.getElementById('pos-cust-stamps');
+        const posTotal = document.getElementById('pos-total-members');
+
+        if (posName) posName.textContent = customer.name;
+        if (posCode) posCode.textContent = customer.id;
+        if (posPhone) posPhone.textContent = customer.phone || 'بدون رقم';
+        if (posStamps) posStamps.textContent = customer.stamps;
+        if (posTotal) posTotal.textContent = state.customers.length;
+
+        const pills = document.getElementById('cashier-quick-pills');
+        if (pills) {
+            pills.innerHTML = state.customers.map(c => `
+                <button type="button" onclick="switchCustomer('${c.id}')"
+                    class="px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        c.id === customer.id
+                            ? 'bg-amber-400 text-coffee-950 border-amber-400 font-black'
+                            : 'bg-stone-900 text-stone-300 border-stone-700 hover:border-amber-400/50'
+                    }">
+                    ${c.name} (${c.stamps}/6)
+                </button>
+            `).join('');
+        }
+
+        const logsEl = document.getElementById('pos-logs-container');
+        if (logsEl) {
+            logsEl.innerHTML = state.logs.map(l => `
+                <div class="flex items-center justify-between bg-coffee-950/90 border border-stone-800 rounded-xl px-3.5 py-2.5">
+                    <span class="text-stone-200 font-semibold">${l.text}</span>
+                    <span class="text-[11px] text-stone-500 font-mono shrink-0 mr-2">${l.time}</span>
+                </div>
+            `).join('');
+        }
+
+        // 3. تحديث ستاند المكان والـ QR Code ورابط الكاشير المباشر
+        updateStandQrUrl();
+    }
+
+    window.simulateScanStandQr = function() {
+        isAdminMode = false;
+        window.navigateTo('customer');
+        showToast('📱 تم مسح كود الستاند! أهلاً بك في بطاقة ولاء كافيه تريو.');
+    };
+
+    window.switchCustomer = function(id) {
+        state.activeCustomerId = id;
+        saveState();
+        renderUI();
+    };
+
+    window.createNewMember = function(e) {
+        e.preventDefault();
+        const nameInput = document.getElementById('reg-name');
+        const phoneInput = document.getElementById('reg-phone');
+        const name = (nameInput.value || '').trim();
+        const phone = (phoneInput.value || '').trim();
+        if (!name) return;
+
+        const newId = `TRIO-${101 + state.customers.length}`;
+        state.customers.push({ id: newId, name, phone, stamps: 1, redeemed: 0 });
+        state.activeCustomerId = newId;
+        try { localStorage.setItem(MY_CARD_ID_KEY, newId); } catch (e) {}
+        pushLog(`إصدار بطاقة جديدة للعميل ${name} (${newId}) مع +1 ختم ترحيبي`);
+
+        nameInput.value = '';
+        phoneInput.value = '';
+        saveState();
+        renderUI();
+        showToast(`🎉 أهلاً بك يا ${name}! تم إصدار بطاقتك (${newId}) برصيد 1/6 أختام.`);
+    };
+
+    // وظائف الكاشير
+    window.unlockCashier = function(e) {
+        e.preventDefault();
+        const pinInput = document.getElementById('cashier-pin-input');
+        const pin = (pinInput.value || '').trim();
+        if (pin === CASHIER_PIN) {
+            cashierUnlocked = true;
+            document.getElementById('cashier-lock-screen').classList.add('hidden');
+            document.getElementById('cashier-dashboard').classList.remove('hidden');
+            pinInput.value = '';
+            renderUI();
+            showToast('✅ تم فتح شاشة كاشير كافيه تريو بنجاح.');
+        } else {
+            showToast('❌ رمز الدخول غير صحيح! الرمز هو 1234');
+        }
+    };
+
+    window.lockCashier = function() {
+        cashierUnlocked = false;
+        document.getElementById('cashier-lock-screen').classList.remove('hidden');
+        document.getElementById('cashier-dashboard').classList.add('hidden');
+    };
+
+    window.searchCustomerCashier = function() {
+        const inputEl = document.getElementById('cashier-search-input');
+        const q = (inputEl.value || '').trim().toUpperCase();
+        if (!q) return;
+        const found = state.customers.find(c =>
+            c.id.toUpperCase() === q || c.name.toUpperCase().includes(q) || (c.phone && c.phone.includes(q))
+        );
+        if (found) {
+            state.activeCustomerId = found.id;
+            saveState();
+            renderUI();
+            showToast(`✅ تم تحديد العميل: ${found.name} (${found.id})`);
+        } else {
+            showToast(`⚠️ لا يوجد عميل مطابق لـ "${q}"`);
+        }
+    };
+
+    window.posAddStamp = function() {
+        const customer = getActiveCustomer();
+        if (customer.stamps >= MAX_STAMPS) {
+            showToast(`🎁 بطاقة ${customer.name} مكتملة (6/6)! اضغط زر صرف المشروب المجاني أولاً.`);
+            return;
+        }
+        customer.stamps += 1;
+        pushLog(`☕ إضافة +1 ختم للعميل ${customer.name} (${customer.id}) — الرصيد: ${customer.stamps}/6`);
+        saveState();
+        renderUI();
+
+        if (customer.stamps === MAX_STAMPS) {
+            showToast(`🎉 اكتملت أختام ${customer.name} (6/6)! استحق المشروب المجاني الآن.`);
+        } else {
+            showToast(`✅ تم تسجيل طلب للعميل ${customer.name} (${customer.stamps}/6)`);
+        }
+    };
+
+    window.posRedeemFreeDrink = function() {
+        const customer = getActiveCustomer();
+        if (customer.stamps < MAX_STAMPS) {
+            showToast(`ℹ️ رصيد ${customer.name} الحالي (${customer.stamps}/6) لم يكتمل بعد.`);
+            return;
+        }
+        customer.stamps = 0;
+        customer.redeemed += 1;
+        pushLog(`🎁 صرف المشروب الـ 6 مجاناً للعميل ${customer.name} (${customer.id}) وتصفير العداد`);
+        saveState();
+        renderUI();
+        showToast(`🎁 تم صرف المشروب المجاني للعميل ${customer.name} بنجاح!`);
+    };
+
+    function pushLog(text) {
+        const time = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+        state.logs.unshift({ time, text });
+        if (state.logs.length > 15) state.logs.pop();
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('live-toast');
+        if (!toast) return;
+        document.getElementById('toast-body').textContent = msg;
+        toast.classList.remove('hidden', 'animate-toast');
+        void toast.offsetWidth;
+        toast.classList.add('animate-toast');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(window.closeToast, 5000);
+    }
+
+    window.closeToast = function() {
+        const toast = document.getElementById('live-toast');
+        if (toast) toast.classList.add('hidden');
+    };
+
+    window.addEventListener('hashchange', handleHashRouting);
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            const savedPersonalId = localStorage.getItem(MY_CARD_ID_KEY);
+            if (savedPersonalId && state.customers.some(c => c.id === savedPersonalId)) {
+                state.activeCustomerId = savedPersonalId;
+            }
+        } catch (e) {}
+        setSyncBadgeReady();
+        handleHashRouting();
+    });
+</script>
+</body>
+</html>
